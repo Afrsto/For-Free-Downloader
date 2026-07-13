@@ -16,6 +16,8 @@ import shutil
 import ctypes
 import tkinter as tk
 from tkinter import messagebox, filedialog, Toplevel, Listbox, Scrollbar, END, SINGLE, StringVar
+import hashlib
+import socket
 
 import customtkinter as ctk
 
@@ -35,8 +37,12 @@ if not is_admin():
     sys.exit(0)
 
 APP_TITLE   = "For Free Downloader"
-APP_VERSION = "1"
+APP_VERSION = "1.2.0"
 APP_AUTHOR  = "X2"
+
+GITHUB_REPO = "Afrsto/For-Free-Downloader"
+ASSET_NAME  = "For-Free-Downloader.exe"
+GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 LANG = "en"
 
@@ -181,6 +187,51 @@ STRINGS = {
         "migrating": "Migrating old .lua files from stplug-in to config\\lua...",
         "migrated": "Migration complete: {n} file(s) moved.",
         "no_match_search": "No games match your search.",
+
+        "btn_check_update": "🔄 Check Updates",
+        "tip_check_update": "Check for a new version of the application",
+        "update_available_title": "Update Available",
+        "update_available_msg": "A new version of {app} is available.",
+        "current_version": "Current Version:",
+        "latest_version": "Latest Version:",
+        "release_notes": "Release Notes:",
+        "update_now": "Yes",
+        "update_later": "No",
+        "update_downloading": "Downloading update...",
+        "update_progress_title": "Downloading Update",
+        "update_status_checking": "Checking...",
+        "update_status_downloading": "Downloading...",
+        "update_status_verifying": "Verifying...",
+        "update_status_installing": "Installing...",
+        "update_status_restarting": "Restarting...",
+        "update_status_finished": "Finished.",
+        "update_complete_title": "Update Complete",
+        "update_complete_msg": "The application has been updated successfully.",
+        "update_already_latest": "You are using the latest version.",
+        "update_no_release": "No releases found in the repository.",
+        "update_error_title": "Update Error",
+        "update_error_network": "Network error: {err}",
+        "update_error_github": "GitHub API error: {err}",
+        "update_error_asset": "Release asset '{asset}' not found.",
+        "update_error_download": "Download failed: {err}",
+        "update_error_verify": "Verification failed: {err}",
+        "update_error_install": "Installation failed: {err}",
+        "update_error_permission": "Permission denied. Please run as administrator.",
+        "update_log_checking": "Checking for updates...",
+        "update_log_latest": "Latest version: {version}",
+        "update_log_current": "Current version: {version}",
+        "update_log_up_to_date": "Already up to date.",
+        "update_log_no_release": "No releases found.",
+        "update_log_download_start": "Downloading update from: {url}",
+        "update_log_download_progress": "Downloaded {downloaded} / {total} at {speed}",
+        "update_log_download_complete": "Download complete. File size: {size}",
+        "update_log_verifying": "Verifying download...",
+        "update_log_verify_ok": "Verification passed.",
+        "update_log_verify_fail": "Verification failed (expected {expected}, got {actual})",
+        "update_log_installing": "Installing update...",
+        "update_log_install_success": "Update installed successfully.",
+        "update_log_install_fail": "Update installation failed: {err}",
+        "update_log_restarting": "Restarting application...",
     },
     "ar": {
         "tab_patcher":        "ستيم",
@@ -322,6 +373,51 @@ STRINGS = {
         "migrating": "جاري ترحيل ملفات .lua القديمة من stplug-in إلى config\\lua...",
         "migrated": "اكتمل الترحيل: {n} ملف(ات) تم نقلها.",
         "no_match_search": "لا توجد ألعاب تطابق بحثك.",
+
+        "btn_check_update": "🔄 التحقق من التحديثات",
+        "tip_check_update": "التحقق من وجود إصدار جديد",
+        "update_available_title": "تحديث متاح",
+        "update_available_msg": "يتوفر إصدار جديد من {app}.",
+        "current_version": "الإصدار الحالي:",
+        "latest_version": "أحدث إصدار:",
+        "release_notes": "ملاحظات الإصدار:",
+        "update_now": "نعم",
+        "update_later": "لا",
+        "update_downloading": "جاري تحميل التحديث...",
+        "update_progress_title": "تحميل التحديث",
+        "update_status_checking": "جاري التحقق...",
+        "update_status_downloading": "جاري التحميل...",
+        "update_status_verifying": "جاري التحقق...",
+        "update_status_installing": "جاري التثبيت...",
+        "update_status_restarting": "جاري إعادة التشغيل...",
+        "update_status_finished": "تم.",
+        "update_complete_title": "اكتمل التحديث",
+        "update_complete_msg": "تم تحديث التطبيق بنجاح.",
+        "update_already_latest": "أنت تستخدم أحدث إصدار.",
+        "update_no_release": "لا توجد إصدارات في المستودع.",
+        "update_error_title": "خطأ في التحديث",
+        "update_error_network": "خطأ في الشبكة: {err}",
+        "update_error_github": "خطأ في GitHub API: {err}",
+        "update_error_asset": "الملف '{asset}' غير موجود في الإصدار.",
+        "update_error_download": "فشل التحميل: {err}",
+        "update_error_verify": "فشل التحقق: {err}",
+        "update_error_install": "فشل التثبيت: {err}",
+        "update_error_permission": "صلاحية ممنوعة. الرجاء تشغيل التطبيق كمسؤول.",
+        "update_log_checking": "جاري التحقق من التحديثات...",
+        "update_log_latest": "أحدث إصدار: {version}",
+        "update_log_current": "الإصدار الحالي: {version}",
+        "update_log_up_to_date": "لا توجد تحديثات جديدة.",
+        "update_log_no_release": "لا توجد إصدارات.",
+        "update_log_download_start": "بدء تحميل التحديث من: {url}",
+        "update_log_download_progress": "تم تحميل {downloaded} / {total} بسرعة {speed}",
+        "update_log_download_complete": "اكتمل التحميل. حجم الملف: {size}",
+        "update_log_verifying": "جاري التحقق من التحميل...",
+        "update_log_verify_ok": "اجتاز التحقق.",
+        "update_log_verify_fail": "فشل التحقق (المتوقع {expected}، المستلم {actual})",
+        "update_log_installing": "جاري تثبيت التحديث...",
+        "update_log_install_success": "تم تثبيت التحديث بنجاح.",
+        "update_log_install_fail": "فشل تثبيت التحديث: {err}",
+        "update_log_restarting": "جاري إعادة تشغيل التطبيق...",
     },
 }
 
@@ -345,15 +441,14 @@ def justify_rtl() -> str:
     return "right" if is_rtl() else "left"
 
 class Theme:
-    # Dark red theme – all colors defined here
-    BG = "#050505"          # Main background
+    BG = "#050505"
     BG2 = "#0A0A0A"
     SURFACE = "#111111"
     SURFACE2 = "#161616"
     SURFACE3 = "#1A1A1A"
     BORDER = "#2A0A0A"
     BORDER_HI = "#3A1010"
-    ACCENT = "#FF1A1A"      # Primary red
+    ACCENT = "#FF1A1A"
     ACCENT_HOVER = "#FF3A3A"
     ACCENT_GLOW = "#FF2020"
     ACCENT_DIM = "#661111"
@@ -364,12 +459,11 @@ class Theme:
     TEXT_SUB = "#CCCCCC"
     TEXT_MUTED = "#888888"
     DISABLED = "#555555"
-    INFO = "#38bdf8"        # Light blue for informational messages
-    ERROR = "#ef4444"       # Red for errors
+    INFO = "#38bdf8"
+    ERROR = "#ef4444"
 
 FONT_UI = "Segoe UI"
 FONT_CODE = "Consolas"
-
 FONT_TITLE = (FONT_UI, 17, "bold")
 FONT_BODY = (FONT_UI, 12)
 FONT_BOLD = (FONT_UI, 12, "bold")
@@ -1623,6 +1717,213 @@ class UpdateManagerDialog(SafeToplevel):
             messagebox.showinfo(T("update_complete"), msg)
 
 
+class UpdateManager:
+    def __init__(self, app, log_callback):
+        self.app = app
+        self.log = log_callback
+        self.current_version = APP_VERSION
+        self.latest_version = None
+        self.release_notes = None
+        self.asset_url = None
+        self.downloaded_file = None
+        self._checking = False
+
+    def check_for_updates(self, manual: bool = False):
+        if self._checking:
+            return
+        self._checking = True
+        self.log(T("update_log_checking") + "\n")
+
+        def _worker():
+            try:
+                req = urllib.request.Request(GITHUB_API_URL, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": f"{APP_TITLE}/{APP_VERSION}"})
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+
+                tag = data.get("tag_name", "").strip()
+                if not tag:
+                    raise ValueError("No tag name in release")
+
+                if tag.startswith('v'):
+                    tag = tag[1:]
+                self.latest_version = tag
+
+                body = data.get("body", "").strip()
+                if len(body) > 500:
+                    body = body[:500] + "..."
+                self.release_notes = body
+
+                assets = data.get("assets", [])
+                asset = next((a for a in assets if a.get("name") == ASSET_NAME), None)
+                if not asset:
+                    raise ValueError(T("update_error_asset", asset=ASSET_NAME))
+                self.asset_url = asset.get("browser_download_url")
+                if not self.asset_url:
+                    raise ValueError("Asset URL missing")
+
+                self.log(T("update_log_current", version=self.current_version) + "\n")
+                self.log(T("update_log_latest", version=self.latest_version) + "\n")
+
+                if self._version_compare(self.current_version, self.latest_version) >= 0:
+                    if manual:
+                        self.app.show_message(T("update_already_latest"), title=T("update_available_title"))
+                    else:
+                        pass
+                    self._checking = False
+                    self.log(T("update_log_up_to_date") + "\n")
+                    return
+
+                self.app.show_update_dialog(self.latest_version, self.release_notes, self.asset_url)
+                self._checking = False
+
+            except urllib.error.HTTPError as e:
+                if e.code == 404:
+                    self.log(T("update_log_no_release") + "\n")
+                    if manual:
+                        self.app.show_message(T("update_no_release"), title=T("update_available_title"))
+                    else:
+                        pass
+                else:
+                    err_msg = T("update_error_network", err=str(e))
+                    self.log(f"Update check error: {err_msg}\n")
+                    if manual:
+                        self.app.show_message(err_msg, title=T("update_error_title"), is_error=True)
+                self._checking = False
+            except Exception as e:
+                err_msg = T("update_error_github", err=str(e))
+                self.log(f"Update check error: {err_msg}\n")
+                if manual:
+                    self.app.show_message(err_msg, title=T("update_error_title"), is_error=True)
+                self._checking = False
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _version_compare(self, v1: str, v2: str) -> int:
+        def split(v):
+            return [int(x) for x in v.split('.')]
+        try:
+            a = split(v1)
+            b = split(v2)
+            while len(a) < len(b):
+                a.append(0)
+            while len(b) < len(a):
+                b.append(0)
+            for i in range(len(a)):
+                if a[i] > b[i]:
+                    return 1
+                elif a[i] < b[i]:
+                    return -1
+            return 0
+        except:
+            if v1 > v2:
+                return 1
+            elif v1 < v2:
+                return -1
+            return 0
+
+    def download_and_install_update(self, url):
+        self.app.show_progress_window()
+        self.log(f"Update download started: {url}\n")
+        self.log(T("update_log_download_start", url=url) + "\n")
+
+        def worker():
+            try:
+                temp_dir = tempfile.gettempdir()
+                filename = os.path.basename(url)
+                dest = os.path.join(temp_dir, f"{APP_TITLE}_update_{int(time.time())}_{filename}")
+                self.downloaded_file = dest
+
+                req = urllib.request.Request(url, headers={"User-Agent": f"{APP_TITLE}/{APP_VERSION}"})
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    total = int(response.headers.get("Content-Length", 0))
+                    downloaded = 0
+                    start_time = time.time()
+                    with open(dest, "wb") as f:
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total > 0:
+                                progress = downloaded / total
+                                elapsed = time.time() - start_time
+                                speed = downloaded / elapsed if elapsed > 0 else 0
+                                eta = (total - downloaded) / speed if speed > 0 else 0
+                                self.app.update_progress(progress, downloaded, total, speed, eta)
+                            else:
+                                self.app.update_progress(None, downloaded, total, 0, 0)
+
+                self.app.set_progress_status(T("update_status_verifying"))
+                self.log(T("update_log_verifying") + "\n")
+                actual_size = os.path.getsize(dest)
+                if total > 0 and actual_size != total:
+                    raise Exception(T("update_error_verify", err=f"Size mismatch (expected {total}, got {actual_size})"))
+
+                self.log(T("update_log_verify_ok") + "\n")
+                self.log(T("update_log_download_complete", size=human_size(actual_size)) + "\n")
+
+                self.app.set_progress_status(T("update_status_installing"))
+                self.log(T("update_log_installing") + "\n")
+                self._install_update(dest)
+
+            except Exception as e:
+                err_msg = T("update_error_download", err=str(e))
+                self.log(f"Download/install error: {err_msg}\n")
+                self.app.close_progress_window()
+                self.app.show_message(err_msg, title=T("update_error_title"), is_error=True)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _install_update(self, new_exe_path):
+        try:
+            current_exe = sys.executable
+            if not os.path.isfile(current_exe):
+                raise Exception("Current executable not found")
+
+            if not os.path.isfile(new_exe_path):
+                raise Exception("Downloaded file not found")
+
+            temp_dir = tempfile.gettempdir()
+            batch_name = f"update_{APP_TITLE}_{int(time.time())}.bat"
+            batch_path = os.path.join(temp_dir, batch_name)
+
+            batch_content = f"""@echo off
+title {APP_TITLE} Updater
+echo Waiting for {APP_TITLE} to exit...
+:loop
+tasklist /FI "IMAGENAME eq {os.path.basename(current_exe)}" 2>NUL | find /I /N "{os.path.basename(current_exe)}" >NUL
+if "%ERRORLEVEL%"=="0" (
+    timeout /T 1 /NOBREAK >NUL
+    goto loop
+)
+echo Replacing executable...
+move /Y "{new_exe_path}" "{current_exe}"
+if errorlevel 1 (
+    echo Failed to move file. Please replace manually.
+    pause
+    exit
+)
+echo Launching updated application...
+start "" "{current_exe}"
+echo Update complete.
+del "%~f0"
+"""
+            with open(batch_path, "w", encoding="utf-8") as f:
+                f.write(batch_content)
+
+            self.log(T("update_log_restarting") + "\n")
+            subprocess.Popen([batch_path], creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+            self.app.close_progress_window()
+            self.app.show_message(T("update_complete_msg"), title=T("update_complete_title"))
+            self.app.quit()
+        except Exception as e:
+            err_msg = T("update_error_install", err=str(e))
+            self.log(f"Installation error: {err_msg}\n")
+            self.app.close_progress_window()
+            self.app.show_message(err_msg, title=T("update_error_title"), is_error=True)
+
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -1635,8 +1936,16 @@ class App(ctk.CTk):
         self._rem_steam_path: str | None = get_best_steam_path()
         self._migrated = False
         self._update_dialog = None
+        self._update_manager = UpdateManager(self, self._log)
+        self._progress_dialog = None
+        self._is_updating = False
+
         self._build()
         self.after(500, self._migrate_old_files)
+        self.after(3000, self._auto_check_update)
+
+    def _auto_check_update(self):
+        self._update_manager.check_for_updates(manual=False)
 
     def _switch_language(self):
         global LANG
@@ -1682,9 +1991,18 @@ class App(ctk.CTk):
             text_color=Theme.TEXT_MUTED, fg_color="transparent",
         ).pack(anchor=rtl_anchor())
 
-        lang_btn = _make_btn(bar, T("btn_lang"), command=self._switch_language,
+        right_frame = ctk.CTkFrame(bar, fg_color="transparent")
+        right_frame.pack(side=rtl_side_sec(), padx=12)
+
+        update_btn = _make_btn(right_frame, T("btn_check_update"),
+                               command=self._manual_check_update,
+                               color="ghost", width=120, height=28)
+        update_btn.pack(side=rtl_side_main(), padx=(0, 6) if not is_rtl() else (6, 0))
+        Tooltip(update_btn, T("tip_check_update"))
+
+        lang_btn = _make_btn(right_frame, T("btn_lang"), command=self._switch_language,
                              color="ghost", width=80, height=28)
-        lang_btn.pack(side=rtl_side_sec(), padx=(0, 12) if not is_rtl() else (12, 0))
+        lang_btn.pack(side=rtl_side_main())
 
         GlowDivider(bar).pack(side="bottom", fill="x")
 
@@ -2462,6 +2780,160 @@ class App(ctk.CTk):
             self.after(0, lambda: self._log("Steam restarted.\n"))
         except Exception as e:
             self.after(0, lambda err=e: messagebox.showerror(T("error"), T("restart_error", err=err)))
+
+    def _manual_check_update(self):
+        self._update_manager.check_for_updates(manual=True)
+
+    def show_update_dialog(self, latest_version, release_notes, asset_url):
+        dialog = SafeToplevel(self)
+        dialog.title(T("update_available_title"))
+        dialog.geometry("520x400")
+        dialog.minsize(480, 360)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        hdr = ctk.CTkFrame(dialog, fg_color=Theme.SURFACE, corner_radius=0, height=60)
+        hdr.pack(fill="x")
+        hdr.pack_propagate(False)
+        ctk.CTkLabel(
+            hdr, text="🔄  " + T("update_available_title"),
+            font=ctk.CTkFont(FONT_UI, 18, "bold"), text_color=Theme.TEXT
+        ).pack(side=rtl_side_main(), padx=18, pady=12)
+        GlowDivider(hdr).pack(side="bottom", fill="x")
+
+        body = ctk.CTkFrame(dialog, fg_color=Theme.BG2, corner_radius=0)
+        body.pack(fill="both", expand=True, padx=16, pady=16)
+
+        msg = T("update_available_msg", app=APP_TITLE)
+        ctk.CTkLabel(
+            body, text=msg,
+            font=ctk.CTkFont(FONT_UI, 13), text_color=Theme.TEXT_SUB, wraplength=480
+        ).pack(anchor=rtl_anchor(), pady=(0, 10))
+
+        ctk.CTkLabel(
+            body, text=f"{T('current_version')} v{APP_VERSION}",
+            font=ctk.CTkFont(FONT_UI, 12), text_color=Theme.TEXT_MUTED
+        ).pack(anchor=rtl_anchor(), pady=2)
+
+        ctk.CTkLabel(
+            body, text=f"{T('latest_version')} v{latest_version}",
+            font=ctk.CTkFont(FONT_UI, 12, "bold"), text_color=Theme.ACCENT
+        ).pack(anchor=rtl_anchor(), pady=2)
+
+        if release_notes:
+            ctk.CTkLabel(
+                body, text=T("release_notes"),
+                font=ctk.CTkFont(FONT_UI, 11, "bold"), text_color=Theme.TEXT_SUB
+            ).pack(anchor=rtl_anchor(), pady=(12, 2))
+            notes_box = ctk.CTkTextbox(
+                body, height=100, fg_color=Theme.SURFACE2,
+                border_color=Theme.BORDER, border_width=1,
+                corner_radius=6, font=ctk.CTkFont(FONT_UI, 10),
+                text_color=Theme.TEXT_SUB
+            )
+            notes_box.pack(fill="both", expand=True, pady=(0, 10))
+            notes_box.insert("1.0", release_notes)
+            notes_box.configure(state="disabled")
+
+        btn_frame = ctk.CTkFrame(body, fg_color="transparent")
+        btn_frame.pack(fill="x", pady=10)
+
+        _make_btn(btn_frame, T("update_later"), command=dialog.destroy,
+                  color="dark", width=100, height=36).pack(
+            side=rtl_side_sec(), padx=6)
+        _make_btn(btn_frame, T("update_now"),
+                  command=lambda: self._start_update(asset_url, dialog),
+                  color="green", width=120, height=36).pack(
+            side=rtl_side_sec(), padx=6)
+
+    def _start_update(self, asset_url, dialog):
+        dialog.destroy()
+        self._update_manager.download_and_install_update(asset_url)
+
+    def show_progress_window(self):
+        if self._progress_dialog and self._progress_dialog.winfo_exists():
+            return
+        self._progress_dialog = SafeToplevel(self)
+        self._progress_dialog.title(T("update_progress_title"))
+        self._progress_dialog.geometry("460x200")
+        self._progress_dialog.minsize(400, 180)
+        self._progress_dialog.transient(self)
+        self._progress_dialog.grab_set()
+
+        self._progress_status = ctk.CTkLabel(
+            self._progress_dialog, text=T("update_status_downloading"),
+            font=ctk.CTkFont(FONT_UI, 12), text_color=Theme.TEXT_SUB
+        )
+        self._progress_status.pack(pady=(20, 0))
+
+        self._progress_bar = ctk.CTkProgressBar(
+            self._progress_dialog, height=8, corner_radius=4,
+            fg_color=Theme.SURFACE3, progress_color=Theme.ACCENT
+        )
+        self._progress_bar.pack(fill="x", padx=30, pady=10)
+        self._progress_bar.set(0)
+
+        self._progress_info = ctk.CTkLabel(
+            self._progress_dialog, text="",
+            font=ctk.CTkFont(FONT_UI, 10), text_color=Theme.TEXT_MUTED
+        )
+        self._progress_info.pack(pady=5)
+
+    def update_progress(self, progress, downloaded, total, speed, eta):
+        if not self._progress_dialog or not self._progress_dialog.winfo_exists():
+            return
+
+        def _update():
+            try:
+                if progress is not None:
+                    self._progress_bar.set(progress)
+                info_text = ""
+                if total > 0:
+                    info_text += f"{human_size(downloaded)} / {human_size(total)}"
+                else:
+                    info_text += f"{human_size(downloaded)}"
+                if speed > 0:
+                    info_text += f"  •  {human_speed(speed)}"
+                if eta > 0:
+                    info_text += f"  •  ETA: {self._format_time(eta)}"
+                self._progress_info.configure(text=info_text)
+            except Exception:
+                pass
+        self.after(0, _update)
+
+    def set_progress_status(self, status):
+        if not self._progress_dialog or not self._progress_dialog.winfo_exists():
+            return
+        def _update():
+            try:
+                self._progress_status.configure(text=status)
+            except Exception:
+                pass
+        self.after(0, _update)
+
+    def close_progress_window(self):
+        if self._progress_dialog and self._progress_dialog.winfo_exists():
+            self._progress_dialog.destroy()
+            self._progress_dialog = None
+
+    def _format_time(self, seconds):
+        if seconds < 60:
+            return f"{int(seconds)}s"
+        elif seconds < 3600:
+            m = int(seconds // 60)
+            s = int(seconds % 60)
+            return f"{m:02d}:{s:02d}"
+        else:
+            h = int(seconds // 3600)
+            m = int((seconds % 3600) // 60)
+            s = int(seconds % 60)
+            return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def show_message(self, msg, title="Info", is_error=False):
+        if is_error:
+            messagebox.showerror(title, msg)
+        else:
+            messagebox.showinfo(title, msg)
 
 
 if __name__ == "__main__":
